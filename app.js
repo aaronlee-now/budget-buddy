@@ -18,6 +18,18 @@
     petName: "Sunny",
   };
 
+  const ACTIONS = [
+    { cls: "act-run-right", ms: 1400, line: "Zooming to the right — savings sprint!" },
+    { cls: "act-run-left", ms: 1400, line: "Dashing left like free money!" },
+    { cls: "act-hop", ms: 1000, line: "Boing! Compound interest hops." },
+    { cls: "act-spin", ms: 1150, line: "Spinning on good habits!" },
+    { cls: "act-zoom", ms: 1550, line: "Lap around the budget yard!" },
+    { cls: "act-dance", ms: 1450, line: "Dance break — you earned it." },
+    { cls: "act-peek", ms: 1650, line: "Peeking at your progress…" },
+    { cls: "act-stretch", ms: 1300, line: "Big stretch before the next save." },
+    { cls: "act-shake", ms: 750, line: "Shaking off overspending vibes." },
+  ];
+
   const els = {
     form: document.getElementById("budget-form"),
     goal: document.getElementById("goal"),
@@ -26,6 +38,7 @@
     petNameInput: document.getElementById("petName"),
     resetBtn: document.getElementById("reset-btn"),
     petBody: document.getElementById("pet-body"),
+    petMover: document.getElementById("pet-mover"),
     petName: document.getElementById("pet-name"),
     petMood: document.getElementById("pet-mood"),
     progressFill: document.getElementById("progress-fill"),
@@ -42,6 +55,11 @@
     formMsg: document.getElementById("form-msg"),
     mouth: document.querySelector(".mouth"),
   };
+
+  let actionBusy = false;
+  let actionTimer = null;
+  let lastMood = "";
+  let baseMood = "";
 
   function money(n) {
     return new Intl.NumberFormat(undefined, {
@@ -127,12 +145,16 @@
     const energyPct = Math.round(view.energy * 100);
 
     els.petName.textContent = state.petName || "Sunny";
-    els.petMood.textContent =
+    baseMood =
       view.kept <= 0 && view.have === 0
         ? "Waiting for your first save…"
         : view.progress >= 1
           ? "Goal reached! I'm bursting with pride."
           : view.stage.mood;
+    if (!actionBusy) {
+      els.petMood.textContent = baseMood;
+      lastMood = baseMood;
+    }
 
     for (let i = 0; i <= 4; i += 1) {
       els.petBody.classList.toggle(`stage-${i}`, i === view.stageIndex);
@@ -188,9 +210,58 @@
     return { state: { goal, have, spend, petName } };
   }
 
+  function clearActionClasses() {
+    if (!els.petMover) return;
+    ACTIONS.forEach((action) => els.petMover.classList.remove(action.cls));
+  }
+
+  function playRandomAction() {
+    if (!els.petMover || actionBusy) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
+    actionBusy = true;
+    clearActionClasses();
+    // Force restart if the same class is reused
+    void els.petMover.offsetWidth;
+    els.petMover.classList.add(action.cls);
+    els.petMood.textContent = action.line;
+    lastMood = action.line;
+
+    window.setTimeout(() => {
+      clearActionClasses();
+      actionBusy = false;
+      els.petMood.textContent = baseMood || lastMood;
+    }, action.ms);
+  }
+
+  function scheduleNextAction() {
+    if (actionTimer) window.clearTimeout(actionTimer);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Higher energy pets antics a bit more often
+    const energyPct = Number(els.energyBar?.getAttribute("aria-valuenow") || 0);
+    const minGap = energyPct >= 65 ? 2200 : energyPct >= 30 ? 3200 : 4200;
+    const maxGap = energyPct >= 65 ? 5200 : energyPct >= 30 ? 7000 : 9000;
+    const delay = minGap + Math.random() * (maxGap - minGap);
+    actionTimer = window.setTimeout(() => {
+      playRandomAction();
+      scheduleNextAction();
+    }, delay);
+  }
+
   let state = loadState();
   fillForm(state);
   render(state);
+  scheduleNextAction();
+
+  // Tap / click the pet to trigger an immediate antic
+  if (els.petMover) {
+    els.petMover.style.cursor = "pointer";
+    els.petMover.title = "Click me!";
+    els.petMover.addEventListener("click", () => {
+      playRandomAction();
+    });
+  }
 
   els.form.addEventListener("submit", (event) => {
     event.preventDefault();
