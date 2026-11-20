@@ -250,6 +250,15 @@
     <p>Budget Buddy · works offline after first load · data stays in this browser</p>
   </footer>
 
+  <div id="earn-warning" class="earn-warning" hidden role="alertdialog" aria-modal="true" aria-labelledby="earn-warning-title" aria-describedby="earn-warning-body">
+    <div class="earn-warning-sign">
+      <p class="earn-warning-eyebrow">Budget Buddy alert</p>
+      <p id="earn-warning-title" class="earn-warning-title">Earn money!</p>
+      <p id="earn-warning-body" class="earn-warning-body">Your pet is hungry for income. Log some earnings now.</p>
+      <p class="earn-warning-timer" aria-hidden="true"><span id="earn-warning-secs">7</span>s</p>
+    </div>
+  </div>
+
   <script src="app.js" defer></script>
 </body>
 </html>

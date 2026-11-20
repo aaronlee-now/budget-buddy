@@ -79,6 +79,10 @@
     statGoal: document.getElementById("stat-goal"),
     formMsg: document.getElementById("form-msg"),
     mouth: document.querySelector(".mouth"),
+    earnWarning: document.getElementById("earn-warning"),
+    earnWarningTitle: document.getElementById("earn-warning-title"),
+    earnWarningBody: document.getElementById("earn-warning-body"),
+    earnWarningSecs: document.getElementById("earn-warning-secs"),
   };
 
   let actionBusy = false;
@@ -86,6 +90,10 @@
   let lastMood = "";
   let baseMood = "";
   let pleadLevel = 0; // 0 none, 1 soft, 2 hard
+  let previousPleadLevel = -1;
+  let warnHideTimer = null;
+  let warnTickTimer = null;
+  let warnVisible = false;
 
   function money(n) {
     return new Intl.NumberFormat(undefined, {
@@ -452,6 +460,14 @@
     els.petBody.classList.toggle("is-pleading", pleadLevel === 1);
     els.petBody.classList.toggle("is-pleading-hard", pleadLevel === 2);
 
+    // Big on-screen warning when the pet starts (or escalates) pleading
+    if (pleadLevel > 0 && pleadLevel > previousPleadLevel) {
+      showEarnWarning(pleadLevel);
+    } else if (pleadLevel === 0 && previousPleadLevel > 0) {
+      hideEarnWarning();
+    }
+    previousPleadLevel = pleadLevel;
+
     if (els.deadlineBadge) {
       els.deadlineBadge.hidden = false;
       els.deadlineBadge.textContent = due.text;
@@ -536,6 +552,54 @@
         at: new Date().toISOString(),
       },
     };
+  }
+
+  function hideEarnWarning() {
+    if (warnHideTimer) {
+      window.clearTimeout(warnHideTimer);
+      warnHideTimer = null;
+    }
+    if (warnTickTimer) {
+      window.clearInterval(warnTickTimer);
+      warnTickTimer = null;
+    }
+    warnVisible = false;
+    if (els.earnWarning) els.earnWarning.hidden = true;
+  }
+
+  function showEarnWarning(level) {
+    if (!els.earnWarning) return;
+    hideEarnWarning();
+    warnVisible = true;
+
+    const hard = level >= 2;
+    if (els.earnWarningTitle) {
+      els.earnWarningTitle.textContent = hard ? "Earn money now!" : "Earn money!";
+    }
+    if (els.earnWarningBody) {
+      els.earnWarningBody.textContent = hard
+        ? "Your pet is desperate — log income before the savings dream fades."
+        : "Your pet is pleading for income. Add earnings to keep growing.";
+    }
+    if (els.earnWarningSecs) els.earnWarningSecs.textContent = "7";
+
+    els.earnWarning.hidden = false;
+
+    let remaining = 7;
+    warnTickTimer = window.setInterval(() => {
+      remaining -= 1;
+      if (els.earnWarningSecs) {
+        els.earnWarningSecs.textContent = String(Math.max(0, remaining));
+      }
+      if (remaining <= 0 && warnTickTimer) {
+        window.clearInterval(warnTickTimer);
+        warnTickTimer = null;
+      }
+    }, 1000);
+
+    warnHideTimer = window.setTimeout(() => {
+      hideEarnWarning();
+    }, 7000);
   }
 
   function clearActionClasses() {
