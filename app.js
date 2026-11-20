@@ -14,6 +14,7 @@
 
   const DEFAULTS = {
     goal: 500,
+    deadline: "",
     petName: "Sunny",
     income: [],
     spend: [],
@@ -36,7 +37,10 @@
     incomeForm: document.getElementById("income-form"),
     spendForm: document.getElementById("spend-form"),
     goal: document.getElementById("goal"),
+    deadline: document.getElementById("deadline"),
     petNameInput: document.getElementById("petName"),
+    deadlineBadge: document.getElementById("deadline-badge"),
+    statDeadline: document.getElementById("stat-deadline"),
     incomeAmount: document.getElementById("income-amount"),
     incomeSource: document.getElementById("income-source"),
     spendAmount: document.getElementById("spend-amount"),
@@ -109,6 +113,122 @@
     return list.reduce((total, item) => total + item.amount, 0);
   }
 
+  function todayLocalISO() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function defaultDeadlineISO() {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function normalizeDeadline(value) {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : "";
+  }
+
+  function parseLocalDate(iso) {
+    const parts = iso.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function daysUntil(iso) {
+    const target = parseLocalDate(iso);
+    if (!target) return null;
+    const start = parseLocalDate(todayLocalISO());
+    const ms = target.getTime() - start.getTime();
+    return Math.round(ms / 86400000);
+  }
+
+  function formatDeadlineLabel(iso) {
+    const date = parseLocalDate(iso);
+    if (!date) return "—";
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function deadlineStatus(iso, progress) {
+    if (!iso) {
+      return {
+        text: "No deadline set",
+        short: "—",
+        tone: "",
+        mood: null,
+      };
+    }
+    const days = daysUntil(iso);
+    const label = formatDeadlineLabel(iso);
+    if (progress >= 1) {
+      return {
+        text: `Goal met · was due ${label}`,
+        short: label,
+        tone: "done",
+        mood: null,
+        days,
+      };
+    }
+    if (days === null) {
+      return { text: label, short: label, tone: "", mood: null, days };
+    }
+    if (days < 0) {
+      const late = Math.abs(days);
+      return {
+        text: `Deadline passed · ${late} day${late === 1 ? "" : "s"} overdue`,
+        short: `${late}d late`,
+        tone: "missed",
+        mood: "Deadline slipped — let's catch up and grow again.",
+        days,
+      };
+    }
+    if (days === 0) {
+      return {
+        text: `Due today · ${label}`,
+        short: "Due today",
+        tone: "urgent",
+        mood: "Today's the day — push for that last bit of savings!",
+        days,
+      };
+    }
+    if (days <= 7) {
+      return {
+        text: `${days} day${days === 1 ? "" : "s"} left · ${label}`,
+        short: `${days}d left`,
+        tone: "urgent",
+        mood: "Deadline is close — every dollar counts right now.",
+        days,
+      };
+    }
+    if (days <= 21) {
+      return {
+        text: `${days} days left · ${label}`,
+        short: `${days}d left`,
+        tone: "warn",
+        mood: "Clock's ticking — keep feeding those savings.",
+        days,
+      };
+    }
+    return {
+      text: `${days} days left · ${label}`,
+      short: `${days}d left`,
+      tone: "",
+      mood: null,
+      days,
+    };
+  }
+
   function migrateLegacy(parsed) {
     const income = [];
     const spend = [];
@@ -122,6 +242,7 @@
     }
     return {
       goal: Number(parsed.goal) >= 0 ? Number(parsed.goal) : DEFAULTS.goal,
+      deadline: normalizeDeadline(parsed.deadline) || defaultDeadlineISO(),
       petName:
         typeof parsed.petName === "string" && parsed.petName.trim()
           ? parsed.petName.trim().slice(0, 24)
@@ -138,6 +259,7 @@
         const parsed = JSON.parse(raw);
         return {
           goal: Number(parsed.goal) >= 0 ? Number(parsed.goal) : DEFAULTS.goal,
+          deadline: normalizeDeadline(parsed.deadline) || defaultDeadlineISO(),
           petName:
             typeof parsed.petName === "string" && parsed.petName.trim()
               ? parsed.petName.trim().slice(0, 24)
@@ -159,6 +281,7 @@
     }
     return {
       goal: DEFAULTS.goal,
+      deadline: defaultDeadlineISO(),
       petName: DEFAULTS.petName,
       income: [],
       spend: [],
@@ -206,6 +329,10 @@
 
   function fillSettings(current) {
     els.goal.value = current.goal === 0 ? "" : String(current.goal);
+    const deadline = current.deadline || defaultDeadlineISO();
+    els.deadline.value = deadline;
+    // Allow showing an overdue saved deadline; otherwise don't pick days in the past.
+    els.deadline.min = deadline < todayLocalISO() ? deadline : todayLocalISO();
     els.petNameInput.value = current.petName;
   }
 
@@ -254,16 +381,27 @@
     const pct = Math.round(view.progress * 100);
     const energyPct = Math.round(view.energy * 100);
 
+    const due = deadlineStatus(current.deadline, view.progress);
+
     els.petName.textContent = current.petName || "Sunny";
     baseMood =
       view.kept <= 0 && view.have === 0
         ? "Waiting for your first save…"
         : view.progress >= 1
           ? "Goal reached! I'm bursting with pride."
-          : view.stage.mood;
+          : due.mood || view.stage.mood;
     if (!actionBusy) {
       els.petMood.textContent = baseMood;
       lastMood = baseMood;
+    }
+
+    if (els.deadlineBadge) {
+      els.deadlineBadge.hidden = false;
+      els.deadlineBadge.textContent = due.text;
+      els.deadlineBadge.className = `deadline-badge${due.tone ? ` ${due.tone}` : ""}`;
+    }
+    if (els.statDeadline) {
+      els.statDeadline.textContent = due.short;
     }
 
     for (let i = 0; i <= 4; i += 1) {
@@ -306,6 +444,7 @@
 
   function readSettings() {
     const goal = Number(els.goal.value);
+    const deadline = normalizeDeadline(els.deadline.value);
     const petName = (els.petNameInput.value || "").trim().slice(0, 24) || DEFAULTS.petName;
     if (!Number.isFinite(goal) || goal < 0) {
       return { error: "Enter a valid savings goal." };
@@ -313,7 +452,10 @@
     if (goal === 0) {
       return { error: "Set a savings goal greater than zero so your pet has something to grow toward." };
     }
-    return { goal, petName };
+    if (!deadline) {
+      return { error: "Pick a deadline date for your savings goal." };
+    }
+    return { goal, deadline, petName };
   }
 
   function readEntry(amountEl, sourceEl, label) {
@@ -392,14 +534,15 @@
       showMessage(result.error, true);
       return;
     }
-    state = { ...state, goal: result.goal, petName: result.petName };
+    state = { ...state, goal: result.goal, deadline: result.deadline, petName: result.petName };
     saveState(state);
     render(state);
     const view = compute(state);
+    const due = deadlineStatus(state.deadline, view.progress);
     showMessage(
       view.progress >= 1
         ? `${state.petName} is legendary — you hit your savings goal!`
-        : `Settings saved. ${state.petName} is a ${view.stage.name}.`,
+        : `Settings saved. Deadline ${due.short}. ${state.petName} is a ${view.stage.name}.`,
       false
     );
   });
@@ -452,22 +595,22 @@
   els.incomeList.addEventListener("click", onRemoveClick);
   els.spendList.addEventListener("click", onRemoveClick);
 
-  els.goal.addEventListener("input", () => {
+  function previewFromSettings() {
     const goal = Number(els.goal.value);
-    if (!Number.isFinite(goal) || goal < 0) return;
+    const deadline = normalizeDeadline(els.deadline.value);
     render({
       ...state,
-      goal: goal > 0 ? goal : state.goal,
+      goal: Number.isFinite(goal) && goal > 0 ? goal : state.goal,
+      deadline: deadline || state.deadline,
       petName: (els.petNameInput.value || "").trim().slice(0, 24) || state.petName,
     });
-  });
+  }
 
-  els.petNameInput.addEventListener("input", () => {
-    render({
-      ...state,
-      petName: (els.petNameInput.value || "").trim().slice(0, 24) || state.petName,
-    });
-  });
+  els.goal.addEventListener("input", previewFromSettings);
+  els.deadline.addEventListener("change", previewFromSettings);
+  els.deadline.addEventListener("input", previewFromSettings);
+
+  els.petNameInput.addEventListener("input", previewFromSettings);
 
   els.resetBtn.addEventListener("click", () => {
     if (!window.confirm("Reset Budget Buddy? This clears saved data in this browser.")) return;
@@ -475,12 +618,13 @@
     localStorage.removeItem(LEGACY_KEY);
     state = {
       goal: DEFAULTS.goal,
+      deadline: defaultDeadlineISO(),
       petName: DEFAULTS.petName,
       income: [],
       spend: [],
     };
     fillSettings(state);
     render(state);
-    showMessage("Reset complete. Set a goal and start logging entries.", false);
+    showMessage("Reset complete. Set a goal, deadline, and start logging entries.", false);
   });
 })();

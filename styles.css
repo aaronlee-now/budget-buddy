@@ -602,6 +602,38 @@ body {
   letter-spacing: 0.02em;
 }
 
+.deadline-badge {
+  display: inline-block;
+  margin: 0.55rem 0 0;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(42, 168, 137, 0.18);
+  color: #146852;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.deadline-badge.warn {
+  background: rgba(255, 138, 61, 0.22);
+  color: #9a4a0a;
+}
+
+.deadline-badge.urgent {
+  background: rgba(255, 94, 122, 0.2);
+  color: #8a1f35;
+}
+
+.deadline-badge.done {
+  background: rgba(126, 224, 195, 0.35);
+  color: #145c48;
+}
+
+.deadline-badge.missed {
+  background: rgba(26, 36, 24, 0.12);
+  color: var(--ink-soft);
+}
+
 /* —— Panel / form —— */
 .panel {
   background: var(--paper-strong);
@@ -766,9 +798,15 @@ body {
   border-top: 2px dashed rgba(26, 36, 24, 0.12);
 }
 
-@media (min-width: 560px) {
+@media (min-width: 720px) {
   .summary {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .summary {
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
