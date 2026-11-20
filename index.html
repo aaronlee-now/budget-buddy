@@ -75,6 +75,19 @@
                 <!-- Feet -->
                 <ellipse class="foot foot-l" cx="130" cy="255" rx="22" ry="14" fill="#E86F28" />
                 <ellipse class="foot foot-r" cx="190" cy="255" rx="22" ry="14" fill="#E86F28" />
+
+                <!-- Plead tears (shown when hungry for income) -->
+                <g class="tears" aria-hidden="true">
+                  <path class="tear tear-l" d="M118 188 Q114 198 118 206 Q122 198 118 188" fill="#7EC8FF" opacity="0" />
+                  <path class="tear tear-r" d="M202 188 Q198 198 202 206 Q206 198 202 188" fill="#7EC8FF" opacity="0" />
+                </g>
+              </g>
+
+              <!-- Plead bubble -->
+              <g id="plead-bubble" class="plead-bubble" aria-hidden="true">
+                <ellipse cx="248" cy="78" rx="42" ry="32" fill="#FFFDF8" stroke="#1A2418" stroke-width="3" />
+                <path d="M220 100 L210 118 L232 104" fill="#FFFDF8" stroke="#1A2418" stroke-width="3" stroke-linejoin="round" />
+                <text x="248" y="86" text-anchor="middle" font-family="Baloo 2, sans-serif" font-size="26" font-weight="800" fill="#C47A00">$?</text>
               </g>
 
               <!-- Energy sparks (shown at higher stages via CSS) -->

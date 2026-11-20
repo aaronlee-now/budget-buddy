@@ -32,6 +32,16 @@
     { cls: "act-shake", ms: 750, line: "Shaking off overspending vibes." },
   ];
 
+  const PLEAD_ACTIONS = [
+    { cls: "act-shake", ms: 750, line: "Please earn something — I'm getting wobbly…" },
+    { cls: "act-peek", ms: 1650, line: "Any paycheck coming? Asking for a friend (me)." },
+    { cls: "act-hop", ms: 1000, line: "Hopeless for income… feed me a deposit!" },
+  ];
+
+  // Hours since last income before the pet starts pleading / gets desperate
+  const PLEAD_AFTER_HOURS = 18;
+  const PLEAD_HARD_HOURS = 48;
+
   const els = {
     settingsForm: document.getElementById("settings-form"),
     incomeForm: document.getElementById("income-form"),
@@ -75,6 +85,7 @@
   let actionTimer = null;
   let lastMood = "";
   let baseMood = "";
+  let pleadLevel = 0; // 0 none, 1 soft, 2 hard
 
   function money(n) {
     return new Intl.NumberFormat(undefined, {
@@ -292,6 +303,41 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  function hoursSinceLastIncome(income) {
+    if (!income || income.length === 0) return Infinity;
+    let latest = 0;
+    income.forEach((entry) => {
+      const t = Date.parse(entry.at);
+      if (Number.isFinite(t) && t > latest) latest = t;
+    });
+    if (!latest) return Infinity;
+    return (Date.now() - latest) / 3600000;
+  }
+
+  function incomeHunger(income) {
+    const hours = hoursSinceLastIncome(income);
+    if (!Number.isFinite(hours) || hours >= PLEAD_HARD_HOURS) {
+      const days = Math.floor(hours / 24);
+      return {
+        level: 2,
+        hours,
+        mood:
+          income.length === 0
+            ? "I haven't eaten a single dollar… please log some income!"
+            : `It's been ${days >= 1 ? `${days}+ day${days === 1 ? "" : "s"}` : "ages"} with no earnings — I'm pleading!`,
+      };
+    }
+    if (hours >= PLEAD_AFTER_HOURS) {
+      const hrs = Math.floor(hours);
+      return {
+        level: 1,
+        hours,
+        mood: `No income for ~${hrs} hours… pretty please earn something?`,
+      };
+    }
+    return { level: 0, hours, mood: null };
+  }
+
   function compute(current) {
     const goal = Math.max(0, current.goal);
     const have = sumEntries(current.income);
@@ -299,7 +345,10 @@
     const kept = Math.max(0, have - spend);
     const progress = goal > 0 ? clamp(kept / goal, 0, 1) : 0;
     const spendRatio = have > 0 ? clamp(spend / have, 0, 1) : spend > 0 ? 1 : 0;
-    const energy = clamp(progress * (1 - spendRatio * 0.35) + progress * 0.15, 0, 1);
+    let energy = clamp(progress * (1 - spendRatio * 0.35) + progress * 0.15, 0, 1);
+    const hunger = incomeHunger(current.income);
+    if (hunger.level === 1) energy = clamp(energy * 0.7, 0, 1);
+    if (hunger.level === 2) energy = clamp(energy * 0.4, 0, 1);
     let stageIndex = 0;
     for (let i = STAGES.length - 1; i >= 0; i -= 1) {
       if (progress >= STAGES[i].min) {
@@ -318,6 +367,7 @@
       energy,
       stageIndex,
       stage: STAGES[stageIndex],
+      hunger,
     };
   }
 
@@ -382,18 +432,25 @@
     const energyPct = Math.round(view.energy * 100);
 
     const due = deadlineStatus(current.deadline, view.progress);
+    pleadLevel = view.hunger.level;
 
     els.petName.textContent = current.petName || "Sunny";
     baseMood =
-      view.kept <= 0 && view.have === 0
-        ? "Waiting for your first save…"
-        : view.progress >= 1
-          ? "Goal reached! I'm bursting with pride."
-          : due.mood || view.stage.mood;
+      view.hunger.mood
+        ? view.hunger.mood
+        : view.kept <= 0 && view.have === 0
+          ? "Waiting for your first save…"
+          : view.progress >= 1
+            ? "Goal reached! I'm bursting with pride."
+            : due.mood || view.stage.mood;
     if (!actionBusy) {
       els.petMood.textContent = baseMood;
       lastMood = baseMood;
     }
+    els.petMood.classList.toggle("is-pleading", pleadLevel > 0);
+
+    els.petBody.classList.toggle("is-pleading", pleadLevel === 1);
+    els.petBody.classList.toggle("is-pleading-hard", pleadLevel === 2);
 
     if (els.deadlineBadge) {
       els.deadlineBadge.hidden = false;
@@ -430,7 +487,11 @@
     renderEntryList(els.spendList, els.spendEmpty, current.spend, "spend");
 
     if (els.mouth) {
-      if (view.progress >= 0.9) {
+      if (pleadLevel >= 2) {
+        els.mouth.setAttribute("d", "M145 210 Q160 198 175 210");
+      } else if (pleadLevel === 1) {
+        els.mouth.setAttribute("d", "M148 208 Q160 200 172 208");
+      } else if (view.progress >= 0.9) {
         els.mouth.setAttribute("d", "M140 196 Q160 222 180 196");
       } else if (view.progress >= 0.4) {
         els.mouth.setAttribute("d", "M145 198 Q160 212 175 198");
@@ -486,7 +547,8 @@
     if (!els.petMover || actionBusy) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
+    const pool = pleadLevel > 0 ? PLEAD_ACTIONS : ACTIONS;
+    const action = pool[Math.floor(Math.random() * pool.length)];
     actionBusy = true;
     clearActionClasses();
     void els.petMover.offsetWidth;
@@ -505,8 +567,11 @@
     if (actionTimer) window.clearTimeout(actionTimer);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const energyPct = Number(els.energyBar?.getAttribute("aria-valuenow") || 0);
-    const minGap = energyPct >= 65 ? 2200 : energyPct >= 30 ? 3200 : 4200;
-    const maxGap = energyPct >= 65 ? 5200 : energyPct >= 30 ? 7000 : 9000;
+    // Plead more often when hungry for income
+    const minGap =
+      pleadLevel >= 2 ? 1600 : pleadLevel === 1 ? 2000 : energyPct >= 65 ? 2200 : energyPct >= 30 ? 3200 : 4200;
+    const maxGap =
+      pleadLevel >= 2 ? 3600 : pleadLevel === 1 ? 4800 : energyPct >= 65 ? 5200 : energyPct >= 30 ? 7000 : 9000;
     const delay = minGap + Math.random() * (maxGap - minGap);
     actionTimer = window.setTimeout(() => {
       playRandomAction();

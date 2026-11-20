@@ -44,5 +44,6 @@ Site URL: https://aaronlee-now.github.io/budget-buddy/
 - **Kept** = Income − Spent (never below $0)
 - **Savings progress** = Kept ÷ Goal (capped at 100%)
 - **Deadline** countdown shows days left (and overdue if missed); near deadlines nudge the pet’s mood
-- **Energy** rises with progress and softens when spending eats most of income
+- **Income hunger**: if you haven’t logged earnings in a while (or ever), the pet pleads — sad face, tears, `$?` bubble, begging arms
+- **Energy** rises with progress and softens when spending eats most of income (and drops further while pleading)
 - Pet **stages** (size, aura, sparks, smile): Seedling → Sprout → Buddy → Champion → Legend
