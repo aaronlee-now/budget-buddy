@@ -1,6 +1,6 @@
 # Budget Buddy
 
-A colorful static savings tracker. You set a goal, log what you have and what you spend, and a pet grows (and gains energy) as you keep money toward your goal.
+A colorful static savings tracker. You set a goal, log income and spending as individual entries, and a pet grows (and gains energy) as you keep money toward your goal.
 
 **Live site:** https://aaronlee-now.github.io/budget-buddy/
 
@@ -20,7 +20,7 @@ python3 -m http.server 8080 --bind 127.0.0.1
 # then visit http://127.0.0.1:8080/
 ```
 
-Data is stored in the browser’s `localStorage` under the key `budget-buddy-v1`.
+Data is stored in the browser’s `localStorage` under the key `budget-buddy-v2` (older `budget-buddy-v1` totals are migrated once).
 
 ## GitHub Pages
 
@@ -37,7 +37,10 @@ Site URL: https://aaronlee-now.github.io/budget-buddy/
 
 ## How progress works
 
-- **Kept** = You have − You spend (never below $0)
+- Log **money in** as separate entries (amount + source)
+- Log **money out** as separate entries (amount + category)
+- **Income** / **Spent** = sums of those lists
+- **Kept** = Income − Spent (never below $0)
 - **Savings progress** = Kept ÷ Goal (capped at 100%)
-- **Energy** rises with progress and softens when spending eats most of what you have
+- **Energy** rises with progress and softens when spending eats most of income
 - Pet **stages** (size, aura, sparks, smile): Seedling → Sprout → Buddy → Champion → Legend

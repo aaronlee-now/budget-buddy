@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "budget-buddy-v1";
+  const STORAGE_KEY = "budget-buddy-v2";
+  const LEGACY_KEY = "budget-buddy-v1";
 
   const STAGES = [
     { min: 0, name: "Seedling", mood: "Tiny and curious — every dollar helps me grow." },
@@ -13,9 +14,9 @@
 
   const DEFAULTS = {
     goal: 500,
-    have: 0,
-    spend: 0,
     petName: "Sunny",
+    income: [],
+    spend: [],
   };
 
   const ACTIONS = [
@@ -31,11 +32,19 @@
   ];
 
   const els = {
-    form: document.getElementById("budget-form"),
+    settingsForm: document.getElementById("settings-form"),
+    incomeForm: document.getElementById("income-form"),
+    spendForm: document.getElementById("spend-form"),
     goal: document.getElementById("goal"),
-    have: document.getElementById("have"),
-    spend: document.getElementById("spend"),
     petNameInput: document.getElementById("petName"),
+    incomeAmount: document.getElementById("income-amount"),
+    incomeSource: document.getElementById("income-source"),
+    spendAmount: document.getElementById("spend-amount"),
+    spendSource: document.getElementById("spend-source"),
+    incomeList: document.getElementById("income-list"),
+    spendList: document.getElementById("spend-list"),
+    incomeEmpty: document.getElementById("income-empty"),
+    spendEmpty: document.getElementById("spend-empty"),
     resetBtn: document.getElementById("reset-btn"),
     petBody: document.getElementById("pet-body"),
     petMover: document.getElementById("pet-mover"),
@@ -49,6 +58,8 @@
     energyBar: document.getElementById("energy-bar"),
     energyAura: document.getElementById("energy-aura"),
     stageBadge: document.getElementById("stage-badge"),
+    statIncome: document.getElementById("stat-income"),
+    statSpent: document.getElementById("stat-spent"),
     statKept: document.getElementById("stat-kept"),
     statNeeded: document.getElementById("stat-needed"),
     statGoal: document.getElementById("stat-goal"),
@@ -73,36 +84,97 @@
     return Math.min(max, Math.max(min, n));
   }
 
+  function uid() {
+    return `e_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function normalizeEntries(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((item) => {
+        const amount = Number(item && item.amount);
+        const source = typeof (item && item.source) === "string" ? item.source.trim().slice(0, 40) : "";
+        if (!(amount > 0) || !source) return null;
+        return {
+          id: typeof (item && item.id) === "string" ? item.id : uid(),
+          amount,
+          source,
+          at: typeof (item && item.at) === "string" ? item.at : new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function sumEntries(list) {
+    return list.reduce((total, item) => total + item.amount, 0);
+  }
+
+  function migrateLegacy(parsed) {
+    const income = [];
+    const spend = [];
+    const have = Number(parsed.have);
+    const spent = Number(parsed.spend);
+    if (have > 0) {
+      income.push({ id: uid(), amount: have, source: "Starting balance", at: new Date().toISOString() });
+    }
+    if (spent > 0) {
+      spend.push({ id: uid(), amount: spent, source: "Earlier spending", at: new Date().toISOString() });
+    }
+    return {
+      goal: Number(parsed.goal) >= 0 ? Number(parsed.goal) : DEFAULTS.goal,
+      petName:
+        typeof parsed.petName === "string" && parsed.petName.trim()
+          ? parsed.petName.trim().slice(0, 24)
+          : DEFAULTS.petName,
+      income,
+      spend,
+    };
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { ...DEFAULTS };
-      const parsed = JSON.parse(raw);
-      return {
-        goal: Number(parsed.goal) >= 0 ? Number(parsed.goal) : DEFAULTS.goal,
-        have: Number(parsed.have) >= 0 ? Number(parsed.have) : DEFAULTS.have,
-        spend: Number(parsed.spend) >= 0 ? Number(parsed.spend) : DEFAULTS.spend,
-        petName:
-          typeof parsed.petName === "string" && parsed.petName.trim()
-            ? parsed.petName.trim().slice(0, 24)
-            : DEFAULTS.petName,
-      };
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          goal: Number(parsed.goal) >= 0 ? Number(parsed.goal) : DEFAULTS.goal,
+          petName:
+            typeof parsed.petName === "string" && parsed.petName.trim()
+              ? parsed.petName.trim().slice(0, 24)
+              : DEFAULTS.petName,
+          income: normalizeEntries(parsed.income),
+          spend: normalizeEntries(parsed.spend),
+        };
+      }
+
+      const legacyRaw = localStorage.getItem(LEGACY_KEY);
+      if (legacyRaw) {
+        const migrated = migrateLegacy(JSON.parse(legacyRaw));
+        saveState(migrated);
+        localStorage.removeItem(LEGACY_KEY);
+        return migrated;
+      }
     } catch {
-      return { ...DEFAULTS };
+      /* fall through */
     }
+    return {
+      goal: DEFAULTS.goal,
+      petName: DEFAULTS.petName,
+      income: [],
+      spend: [],
+    };
   }
 
-  function saveState(state) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  function saveState(next) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
-  function compute(state) {
-    const goal = Math.max(0, state.goal);
-    const have = Math.max(0, state.have);
-    const spend = Math.max(0, state.spend);
+  function compute(current) {
+    const goal = Math.max(0, current.goal);
+    const have = sumEntries(current.income);
+    const spend = sumEntries(current.spend);
     const kept = Math.max(0, have - spend);
     const progress = goal > 0 ? clamp(kept / goal, 0, 1) : 0;
-    // Energy rises with progress but dips if spending eats most of what you have
     const spendRatio = have > 0 ? clamp(spend / have, 0, 1) : spend > 0 ? 1 : 0;
     const energy = clamp(progress * (1 - spendRatio * 0.35) + progress * 0.15, 0, 1);
     let stageIndex = 0;
@@ -132,19 +204,57 @@
     els.formMsg.classList.toggle("error", Boolean(isError));
   }
 
-  function fillForm(state) {
-    els.goal.value = state.goal === 0 ? "" : String(state.goal);
-    els.have.value = state.have === 0 ? "" : String(state.have);
-    els.spend.value = state.spend === 0 ? "" : String(state.spend);
-    els.petNameInput.value = state.petName;
+  function fillSettings(current) {
+    els.goal.value = current.goal === 0 ? "" : String(current.goal);
+    els.petNameInput.value = current.petName;
   }
 
-  function render(state) {
-    const view = compute(state);
+  function renderEntryList(listEl, emptyEl, entries, kind) {
+    listEl.innerHTML = "";
+    emptyEl.hidden = entries.length > 0;
+
+    entries
+      .slice()
+      .reverse()
+      .forEach((entry) => {
+        const li = document.createElement("li");
+        li.className = `entry-row ${kind}`;
+        li.dataset.id = entry.id;
+
+        const main = document.createElement("div");
+        main.className = "entry-main";
+
+        const source = document.createElement("span");
+        source.className = "entry-source";
+        source.textContent = entry.source;
+
+        const amount = document.createElement("strong");
+        amount.className = "entry-amount";
+        amount.textContent = money(entry.amount);
+
+        main.appendChild(source);
+        main.appendChild(amount);
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "entry-remove";
+        remove.dataset.id = entry.id;
+        remove.dataset.kind = kind;
+        remove.setAttribute("aria-label", `Remove ${entry.source}`);
+        remove.textContent = "Remove";
+
+        li.appendChild(main);
+        li.appendChild(remove);
+        listEl.appendChild(li);
+      });
+  }
+
+  function render(current) {
+    const view = compute(current);
     const pct = Math.round(view.progress * 100);
     const energyPct = Math.round(view.energy * 100);
 
-    els.petName.textContent = state.petName || "Sunny";
+    els.petName.textContent = current.petName || "Sunny";
     baseMood =
       view.kept <= 0 && view.have === 0
         ? "Waiting for your first save…"
@@ -160,8 +270,7 @@
       els.petBody.classList.toggle(`stage-${i}`, i === view.stageIndex);
     }
 
-    const auraLevel = view.stageIndex; // 0–4
-    els.energyAura.dataset.level = String(auraLevel);
+    els.energyAura.dataset.level = String(view.stageIndex);
 
     els.progressFill.style.width = `${pct}%`;
     els.progressLabel.textContent = `${pct}%`;
@@ -173,11 +282,15 @@
 
     els.stageBadge.textContent = `Stage ${view.stageIndex + 1} · ${view.stage.name}`;
 
+    els.statIncome.textContent = money(view.have);
+    els.statSpent.textContent = money(view.spend);
     els.statKept.textContent = money(view.kept);
     els.statNeeded.textContent = money(view.needed);
     els.statGoal.textContent = money(view.goal);
 
-    // Smile wider as progress grows
+    renderEntryList(els.incomeList, els.incomeEmpty, current.income, "income");
+    renderEntryList(els.spendList, els.spendEmpty, current.spend, "spend");
+
     if (els.mouth) {
       if (view.progress >= 0.9) {
         els.mouth.setAttribute("d", "M140 196 Q160 222 180 196");
@@ -191,23 +304,35 @@
     }
   }
 
-  function readForm() {
+  function readSettings() {
     const goal = Number(els.goal.value);
-    const have = Number(els.have.value);
-    const spend = Number(els.spend.value);
     const petName = (els.petNameInput.value || "").trim().slice(0, 24) || DEFAULTS.petName;
-
-    if (![goal, have, spend].every((n) => Number.isFinite(n))) {
-      return { error: "Please enter valid numbers for goal, have, and spend." };
-    }
-    if (goal < 0 || have < 0 || spend < 0) {
-      return { error: "Amounts can’t be negative." };
+    if (!Number.isFinite(goal) || goal < 0) {
+      return { error: "Enter a valid savings goal." };
     }
     if (goal === 0) {
       return { error: "Set a savings goal greater than zero so your pet has something to grow toward." };
     }
+    return { goal, petName };
+  }
 
-    return { state: { goal, have, spend, petName } };
+  function readEntry(amountEl, sourceEl, label) {
+    const amount = Number(amountEl.value);
+    const source = (sourceEl.value || "").trim().slice(0, 40);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { error: `Enter a ${label} amount greater than zero.` };
+    }
+    if (!source) {
+      return { error: `Add a ${label === "income" ? "source" : "category"} for this entry.` };
+    }
+    return {
+      entry: {
+        id: uid(),
+        amount,
+        source,
+        at: new Date().toISOString(),
+      },
+    };
   }
 
   function clearActionClasses() {
@@ -222,7 +347,6 @@
     const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
     actionBusy = true;
     clearActionClasses();
-    // Force restart if the same class is reused
     void els.petMover.offsetWidth;
     els.petMover.classList.add(action.cls);
     els.petMood.textContent = action.line;
@@ -238,7 +362,6 @@
   function scheduleNextAction() {
     if (actionTimer) window.clearTimeout(actionTimer);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // Higher energy pets antics a bit more often
     const energyPct = Number(els.energyBar?.getAttribute("aria-valuenow") || 0);
     const minGap = energyPct >= 65 ? 2200 : energyPct >= 30 ? 3200 : 4200;
     const maxGap = energyPct >= 65 ? 5200 : energyPct >= 30 ? 7000 : 9000;
@@ -250,11 +373,10 @@
   }
 
   let state = loadState();
-  fillForm(state);
+  fillSettings(state);
   render(state);
   scheduleNextAction();
 
-  // Tap / click the pet to trigger an immediate antic
   if (els.petMover) {
     els.petMover.style.cursor = "pointer";
     els.petMover.title = "Click me!";
@@ -263,52 +385,102 @@
     });
   }
 
-  els.form.addEventListener("submit", (event) => {
+  els.settingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const result = readForm();
+    const result = readSettings();
     if (result.error) {
       showMessage(result.error, true);
       return;
     }
-    state = result.state;
+    state = { ...state, goal: result.goal, petName: result.petName };
     saveState(state);
     render(state);
     const view = compute(state);
     showMessage(
       view.progress >= 1
         ? `${state.petName} is legendary — you hit your savings goal!`
-        : `Saved! ${state.petName} is now a ${view.stage.name}.`,
+        : `Settings saved. ${state.petName} is a ${view.stage.name}.`,
       false
     );
   });
 
-  // Live preview while typing (still persists only on submit / blur of last known good)
-  ["goal", "have", "spend", "petName"].forEach((id) => {
-    els[id === "petName" ? "petNameInput" : id].addEventListener("input", () => {
-      const goal = Number(els.goal.value);
-      const have = Number(els.have.value);
-      const spend = Number(els.spend.value);
-      if (![goal, have, spend].every((n) => Number.isFinite(n) && n >= 0)) return;
-      const preview = {
-        goal: goal || state.goal,
-        have,
-        spend,
-        petName: (els.petNameInput.value || "").trim().slice(0, 24) || state.petName,
-      };
-      // Don't require goal > 0 for live preview of empty field mid-edit
-      render({
-        ...preview,
-        goal: goal > 0 ? goal : state.goal,
-      });
+  els.incomeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const result = readEntry(els.incomeAmount, els.incomeSource, "income");
+    if (result.error) {
+      showMessage(result.error, true);
+      return;
+    }
+    state = { ...state, income: [...state.income, result.entry] };
+    saveState(state);
+    render(state);
+    els.incomeForm.reset();
+    els.incomeAmount.focus();
+    showMessage(`Logged ${money(result.entry.amount)} from ${result.entry.source}.`, false);
+  });
+
+  els.spendForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const result = readEntry(els.spendAmount, els.spendSource, "spending");
+    if (result.error) {
+      showMessage(result.error, true);
+      return;
+    }
+    state = { ...state, spend: [...state.spend, result.entry] };
+    saveState(state);
+    render(state);
+    els.spendForm.reset();
+    els.spendAmount.focus();
+    showMessage(`Logged ${money(result.entry.amount)} for ${result.entry.source}.`, false);
+  });
+
+  function onRemoveClick(event) {
+    const btn = event.target.closest(".entry-remove");
+    if (!btn) return;
+    const { id, kind } = btn.dataset;
+    if (!id || !kind) return;
+    if (kind === "income") {
+      state = { ...state, income: state.income.filter((item) => item.id !== id) };
+    } else {
+      state = { ...state, spend: state.spend.filter((item) => item.id !== id) };
+    }
+    saveState(state);
+    render(state);
+    showMessage("Entry removed.", false);
+  }
+
+  els.incomeList.addEventListener("click", onRemoveClick);
+  els.spendList.addEventListener("click", onRemoveClick);
+
+  els.goal.addEventListener("input", () => {
+    const goal = Number(els.goal.value);
+    if (!Number.isFinite(goal) || goal < 0) return;
+    render({
+      ...state,
+      goal: goal > 0 ? goal : state.goal,
+      petName: (els.petNameInput.value || "").trim().slice(0, 24) || state.petName,
+    });
+  });
+
+  els.petNameInput.addEventListener("input", () => {
+    render({
+      ...state,
+      petName: (els.petNameInput.value || "").trim().slice(0, 24) || state.petName,
     });
   });
 
   els.resetBtn.addEventListener("click", () => {
     if (!window.confirm("Reset Budget Buddy? This clears saved data in this browser.")) return;
     localStorage.removeItem(STORAGE_KEY);
-    state = { ...DEFAULTS };
-    fillForm(state);
+    localStorage.removeItem(LEGACY_KEY);
+    state = {
+      goal: DEFAULTS.goal,
+      petName: DEFAULTS.petName,
+      income: [],
+      spend: [],
+    };
+    fillSettings(state);
     render(state);
-    showMessage("Reset complete. Set a new goal to wake your pet.", false);
+    showMessage("Reset complete. Set a goal and start logging entries.", false);
   });
 })();

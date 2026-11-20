@@ -119,33 +119,15 @@
 
     <section class="panel" aria-labelledby="budget-heading">
       <h1 id="budget-heading" class="panel-title">Your budget</h1>
-      <p class="panel-lead">Set a goal, log what you have, and track what you spend. Your pet grows with every dollar you keep.</p>
+      <p class="panel-lead">Set a goal, then log income and spending one entry at a time. Your pet grows with every dollar you keep.</p>
 
-      <form id="budget-form" class="budget-form" novalidate>
+      <form id="settings-form" class="budget-form" novalidate>
         <label class="field">
           <span class="field-label">Savings goal</span>
           <span class="field-hint">How much do you want to save?</span>
           <div class="input-wrap">
             <span class="prefix" aria-hidden="true">$</span>
             <input id="goal" name="goal" type="number" min="0" step="0.01" inputmode="decimal" placeholder="500" required />
-          </div>
-        </label>
-
-        <label class="field">
-          <span class="field-label">You have</span>
-          <span class="field-hint">Cash, paycheck, or current savings</span>
-          <div class="input-wrap">
-            <span class="prefix" aria-hidden="true">$</span>
-            <input id="have" name="have" type="number" min="0" step="0.01" inputmode="decimal" placeholder="320" required />
-          </div>
-        </label>
-
-        <label class="field">
-          <span class="field-label">You spend</span>
-          <span class="field-hint">Expenses this period</span>
-          <div class="input-wrap">
-            <span class="prefix" aria-hidden="true">$</span>
-            <input id="spend" name="spend" type="number" min="0" step="0.01" inputmode="decimal" placeholder="140" required />
           </div>
         </label>
 
@@ -158,12 +140,20 @@
         </label>
 
         <div class="actions">
-          <button type="submit" class="btn primary">Update buddy</button>
-          <button type="button" id="reset-btn" class="btn ghost">Reset</button>
+          <button type="submit" class="btn primary">Save settings</button>
+          <button type="button" id="reset-btn" class="btn ghost">Reset all</button>
         </div>
       </form>
 
       <div class="summary" id="summary" aria-live="polite">
+        <div class="stat">
+          <span class="stat-label">Income</span>
+          <strong id="stat-income">$0.00</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Spent</span>
+          <strong id="stat-spent">$0.00</strong>
+        </div>
         <div class="stat">
           <span class="stat-label">Kept</span>
           <strong id="stat-kept">$0.00</strong>
@@ -176,6 +166,54 @@
           <span class="stat-label">Goal</span>
           <strong id="stat-goal">$0.00</strong>
         </div>
+      </div>
+
+      <div class="log-grid">
+        <section class="log-block" aria-labelledby="income-heading">
+          <h2 id="income-heading" class="log-title">Money in</h2>
+          <p class="log-hint">Add income one source at a time.</p>
+          <form id="income-form" class="entry-form" novalidate>
+            <label class="field">
+              <span class="field-label">Amount</span>
+              <div class="input-wrap">
+                <span class="prefix" aria-hidden="true">$</span>
+                <input id="income-amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="120" required />
+              </div>
+            </label>
+            <label class="field">
+              <span class="field-label">Source</span>
+              <div class="input-wrap plain">
+                <input id="income-source" name="source" type="text" maxlength="40" placeholder="Paycheck" required autocomplete="off" />
+              </div>
+            </label>
+            <button type="submit" class="btn primary compact">Add income</button>
+          </form>
+          <ul id="income-list" class="entry-list" aria-live="polite"></ul>
+          <p id="income-empty" class="empty-note">No income logged yet.</p>
+        </section>
+
+        <section class="log-block" aria-labelledby="spend-heading">
+          <h2 id="spend-heading" class="log-title">Money out</h2>
+          <p class="log-hint">Add spending by amount and category.</p>
+          <form id="spend-form" class="entry-form" novalidate>
+            <label class="field">
+              <span class="field-label">Amount</span>
+              <div class="input-wrap">
+                <span class="prefix" aria-hidden="true">$</span>
+                <input id="spend-amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="18.50" required />
+              </div>
+            </label>
+            <label class="field">
+              <span class="field-label">Category</span>
+              <div class="input-wrap plain">
+                <input id="spend-source" name="source" type="text" maxlength="40" placeholder="Groceries" required autocomplete="off" />
+              </div>
+            </label>
+            <button type="submit" class="btn primary compact spend">Add spending</button>
+          </form>
+          <ul id="spend-list" class="entry-list" aria-live="polite"></ul>
+          <p id="spend-empty" class="empty-note">No spending logged yet.</p>
+        </section>
       </div>
 
       <p id="form-msg" class="form-msg" role="status" hidden></p>
