@@ -173,14 +173,6 @@ body {
   animation: brand-in 0.7s ease-out both;
 }
 
-.tagline {
-  margin: 0.35rem 0 0;
-  font-weight: 700;
-  color: var(--ink-soft);
-  font-size: 1.05rem;
-  animation: brand-in 0.7s ease-out 0.08s both;
-}
-
 @keyframes brand-in {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: none; }
@@ -191,7 +183,7 @@ body {
   display: grid;
   gap: 1.5rem;
   width: min(1080px, calc(100% - 2rem));
-  margin: 1rem auto 2.5rem;
+  margin: 1rem auto 3rem;
   align-items: start;
 }
 
@@ -735,16 +727,10 @@ body {
   line-height: 1.1;
 }
 
-.panel-lead {
-  margin: 0.45rem 0 1.35rem;
-  color: var(--ink-soft);
-  font-weight: 600;
-  line-height: 1.45;
-}
-
 .budget-form {
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
 }
 
 .field {
@@ -755,12 +741,6 @@ body {
 .field-label {
   font-weight: 800;
   font-size: 0.95rem;
-}
-
-.field-hint {
-  font-size: 0.8rem;
-  color: var(--ink-soft);
-  font-weight: 600;
 }
 
 .input-wrap {
@@ -921,16 +901,10 @@ body {
   line-height: 1.15;
 }
 
-.log-hint {
-  margin: 0.2rem 0 0.85rem;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
 .entry-form {
   display: grid;
   gap: 0.75rem;
+  margin-top: 0.65rem;
 }
 
 .btn.compact {

@@ -22,7 +22,6 @@
 
   <header class="top">
     <p class="brand">Budget Buddy</p>
-    <p class="tagline">Save money. Grow your pet.</p>
   </header>
 
   <main class="layout">
@@ -132,13 +131,11 @@
     </section>
 
     <section class="panel" aria-labelledby="budget-heading">
-      <h1 id="budget-heading" class="panel-title">Your budget</h1>
-      <p class="panel-lead">Set a goal, then log income and spending one entry at a time. Your pet grows with every dollar you keep.</p>
+      <h1 id="budget-heading" class="panel-title">Budget</h1>
 
       <form id="settings-form" class="budget-form" novalidate>
         <label class="field">
-          <span class="field-label">Savings goal</span>
-          <span class="field-hint">How much do you want to save?</span>
+          <span class="field-label">Goal</span>
           <div class="input-wrap">
             <span class="prefix" aria-hidden="true">$</span>
             <input id="goal" name="goal" type="number" min="0" step="0.01" inputmode="decimal" placeholder="500" required />
@@ -147,7 +144,6 @@
 
         <label class="field">
           <span class="field-label">Deadline</span>
-          <span class="field-hint">When do you want to hit this goal?</span>
           <div class="input-wrap plain">
             <input id="deadline" name="deadline" type="date" required />
           </div>
@@ -155,15 +151,14 @@
 
         <label class="field">
           <span class="field-label">Pet name</span>
-          <span class="field-hint">Optional — rename your buddy</span>
           <div class="input-wrap plain">
             <input id="petName" name="petName" type="text" maxlength="24" placeholder="Sunny" autocomplete="off" />
           </div>
         </label>
 
         <div class="actions">
-          <button type="submit" class="btn primary">Save settings</button>
-          <button type="button" id="reset-btn" class="btn ghost">Reset all</button>
+          <button type="submit" class="btn primary">Save</button>
+          <button type="button" id="reset-btn" class="btn ghost">Reset</button>
         </div>
       </form>
 
@@ -181,7 +176,7 @@
           <strong id="stat-kept">$0.00</strong>
         </div>
         <div class="stat">
-          <span class="stat-label">Still needed</span>
+          <span class="stat-label">Needed</span>
           <strong id="stat-needed">$0.00</strong>
         </div>
         <div class="stat">
@@ -196,8 +191,7 @@
 
       <div class="log-grid">
         <section class="log-block" aria-labelledby="income-heading">
-          <h2 id="income-heading" class="log-title">Money in</h2>
-          <p class="log-hint">Add income one source at a time.</p>
+          <h2 id="income-heading" class="log-title">In</h2>
           <form id="income-form" class="entry-form" novalidate>
             <label class="field">
               <span class="field-label">Amount</span>
@@ -212,15 +206,13 @@
                 <input id="income-source" name="source" type="text" maxlength="40" placeholder="Paycheck" required autocomplete="off" />
               </div>
             </label>
-            <button type="submit" class="btn primary compact">Add income</button>
+            <button type="submit" class="btn primary compact">Add</button>
           </form>
           <ul id="income-list" class="entry-list" aria-live="polite"></ul>
-          <p id="income-empty" class="empty-note">No income logged yet.</p>
         </section>
 
         <section class="log-block" aria-labelledby="spend-heading">
-          <h2 id="spend-heading" class="log-title">Money out</h2>
-          <p class="log-hint">Add spending by amount and category.</p>
+          <h2 id="spend-heading" class="log-title">Out</h2>
           <form id="spend-form" class="entry-form" novalidate>
             <label class="field">
               <span class="field-label">Amount</span>
@@ -235,10 +227,9 @@
                 <input id="spend-source" name="source" type="text" maxlength="40" placeholder="Groceries" required autocomplete="off" />
               </div>
             </label>
-            <button type="submit" class="btn primary compact spend">Add spending</button>
+            <button type="submit" class="btn primary compact spend">Add</button>
           </form>
           <ul id="spend-list" class="entry-list" aria-live="polite"></ul>
-          <p id="spend-empty" class="empty-note">No spending logged yet.</p>
         </section>
       </div>
 
@@ -246,15 +237,9 @@
     </section>
   </main>
 
-  <footer class="foot">
-    <p>Budget Buddy · works offline after first load · data stays in this browser</p>
-  </footer>
-
-  <div id="earn-warning" class="earn-warning" hidden role="alertdialog" aria-modal="true" aria-labelledby="earn-warning-title" aria-describedby="earn-warning-body">
+  <div id="earn-warning" class="earn-warning" hidden role="alertdialog" aria-modal="true" aria-labelledby="earn-warning-title">
     <div class="earn-warning-sign">
-      <p class="earn-warning-eyebrow">Budget Buddy alert</p>
       <p id="earn-warning-title" class="earn-warning-title">Earn money!</p>
-      <p id="earn-warning-body" class="earn-warning-body">Your pet is hungry for income. Log some earnings now.</p>
       <p class="earn-warning-timer" aria-hidden="true"><span id="earn-warning-secs">7</span>s</p>
     </div>
   </div>

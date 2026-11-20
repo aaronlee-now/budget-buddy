@@ -57,8 +57,6 @@
     spendSource: document.getElementById("spend-source"),
     incomeList: document.getElementById("income-list"),
     spendList: document.getElementById("spend-list"),
-    incomeEmpty: document.getElementById("income-empty"),
-    spendEmpty: document.getElementById("spend-empty"),
     resetBtn: document.getElementById("reset-btn"),
     petBody: document.getElementById("pet-body"),
     petMover: document.getElementById("pet-mover"),
@@ -81,7 +79,6 @@
     mouth: document.querySelector(".mouth"),
     earnWarning: document.getElementById("earn-warning"),
     earnWarningTitle: document.getElementById("earn-warning-title"),
-    earnWarningBody: document.getElementById("earn-warning-body"),
     earnWarningSecs: document.getElementById("earn-warning-secs"),
   };
 
@@ -394,9 +391,8 @@
     els.petNameInput.value = current.petName;
   }
 
-  function renderEntryList(listEl, emptyEl, entries, kind) {
+  function renderEntryList(listEl, entries, kind) {
     listEl.innerHTML = "";
-    emptyEl.hidden = entries.length > 0;
 
     entries
       .slice()
@@ -499,8 +495,8 @@
     els.statNeeded.textContent = money(view.needed);
     els.statGoal.textContent = money(view.goal);
 
-    renderEntryList(els.incomeList, els.incomeEmpty, current.income, "income");
-    renderEntryList(els.spendList, els.spendEmpty, current.spend, "spend");
+    renderEntryList(els.incomeList, current.income, "income");
+    renderEntryList(els.spendList, current.spend, "spend");
 
     if (els.mouth) {
       if (pleadLevel >= 2) {
@@ -523,14 +519,11 @@
     const goal = Number(els.goal.value);
     const deadline = normalizeDeadline(els.deadline.value);
     const petName = (els.petNameInput.value || "").trim().slice(0, 24) || DEFAULTS.petName;
-    if (!Number.isFinite(goal) || goal < 0) {
-      return { error: "Enter a valid savings goal." };
-    }
-    if (goal === 0) {
-      return { error: "Set a savings goal greater than zero so your pet has something to grow toward." };
+    if (!Number.isFinite(goal) || goal <= 0) {
+      return { error: "Enter a goal." };
     }
     if (!deadline) {
-      return { error: "Pick a deadline date for your savings goal." };
+      return { error: "Pick a deadline." };
     }
     return { goal, deadline, petName };
   }
@@ -539,10 +532,10 @@
     const amount = Number(amountEl.value);
     const source = (sourceEl.value || "").trim().slice(0, 40);
     if (!Number.isFinite(amount) || amount <= 0) {
-      return { error: `Enter a ${label} amount greater than zero.` };
+      return { error: "Enter an amount." };
     }
     if (!source) {
-      return { error: `Add a ${label === "income" ? "source" : "category"} for this entry.` };
+      return { error: label === "income" ? "Enter a source." : "Enter a category." };
     }
     return {
       entry: {
@@ -572,14 +565,8 @@
     hideEarnWarning();
     warnVisible = true;
 
-    const hard = level >= 2;
     if (els.earnWarningTitle) {
-      els.earnWarningTitle.textContent = hard ? "Earn money now!" : "Earn money!";
-    }
-    if (els.earnWarningBody) {
-      els.earnWarningBody.textContent = hard
-        ? "Your pet is desperate — log income before the savings dream fades."
-        : "Your pet is pleading for income. Add earnings to keep growing.";
+      els.earnWarningTitle.textContent = level >= 2 ? "Earn money now!" : "Earn money!";
     }
     if (els.earnWarningSecs) els.earnWarningSecs.textContent = "7";
 
@@ -650,7 +637,6 @@
 
   if (els.petMover) {
     els.petMover.style.cursor = "pointer";
-    els.petMover.title = "Click me!";
     els.petMover.addEventListener("click", () => {
       playRandomAction();
     });
@@ -666,14 +652,7 @@
     state = { ...state, goal: result.goal, deadline: result.deadline, petName: result.petName };
     saveState(state);
     render(state);
-    const view = compute(state);
-    const due = deadlineStatus(state.deadline, view.progress);
-    showMessage(
-      view.progress >= 1
-        ? `${state.petName} is legendary — you hit your savings goal!`
-        : `Settings saved. Deadline ${due.short}. ${state.petName} is a ${view.stage.name}.`,
-      false
-    );
+    showMessage("", false);
   });
 
   els.incomeForm.addEventListener("submit", (event) => {
@@ -688,7 +667,7 @@
     render(state);
     els.incomeForm.reset();
     els.incomeAmount.focus();
-    showMessage(`Logged ${money(result.entry.amount)} from ${result.entry.source}.`, false);
+    showMessage("", false);
   });
 
   els.spendForm.addEventListener("submit", (event) => {
@@ -703,7 +682,7 @@
     render(state);
     els.spendForm.reset();
     els.spendAmount.focus();
-    showMessage(`Logged ${money(result.entry.amount)} for ${result.entry.source}.`, false);
+    showMessage("", false);
   });
 
   function onRemoveClick(event) {
@@ -718,7 +697,7 @@
     }
     saveState(state);
     render(state);
-    showMessage("Entry removed.", false);
+    showMessage("", false);
   }
 
   els.incomeList.addEventListener("click", onRemoveClick);
@@ -754,6 +733,6 @@
     };
     fillSettings(state);
     render(state);
-    showMessage("Reset complete. Set a goal, deadline, and start logging entries.", false);
+    showMessage("", false);
   });
 })();
